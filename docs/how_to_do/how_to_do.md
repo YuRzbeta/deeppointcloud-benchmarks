@@ -1,21 +1,19 @@
 
 # Understand hydra configuration
 
-We recommend people willing to use the framework to get familiries with [```Facebook Hydra library```](https://hydra.cc/docs/intro).
-
-Reading quickly through Hydra documentation should give one the basic understanding of its core functionalites.
-
-To make it short, it is [```argparse```](https://docs.python.org/2/library/argparse.html) built on top of yaml file, allowing ```arguments to be defined in a tree structure```.
+We recommend people willing to use the framework become familiar with the [```Facebook Hydra library```](https://hydra.cc/docs/intro). Hydra fills a similar use-case to [```argparse```](https://docs.python.org/3/library/argparse.html), but is built on top of yaml file, allowing arguments to be defined in a tree structure.
 
 
 <h2>Configuration architecture</h2>
 
-* config.yaml
-    * hydra/ # configuration related to hydra
-    * models/ # configuration related to the models
-    * data/ # configuration related to the datasets
-* training.yaml
-* eval.yaml
+The configuration files for DPCB can be found in the `conf` directory:
+
+* `config.yaml` - the primary config file 
+* `hydra/...` - configuration related to hydra
+* `models/...` - the models implemented in DPCB, specified using YAML 
+* `data/...` - configuration related to the datasets
+* `training.yaml` - configuration for training the model, such as the number of epochs or whether to use CUDA
+* `eval.yaml`
 
 
 <h4>Understanding config.yaml</h4>
@@ -52,14 +50,16 @@ tensorboard:
 
 Hydra is expecting the followings arguments from the command line:
 
-*  task
-*  model_type
-*  dataset
-*  model_name
+*  `task`
+*  `model_type`
+*  `dataset`
+*  `model_name`
 
-The provided task and dataset will be used to load within ```conf/data/{task}/{dataset}.yaml``` file within data
+For example: `python train.py task=segmentation dataset=shapenet model_type=pointnet2 model_name=pointnet2_original` 
 
-The provided task and dataset will be used to load within ```conf/models/{task}/{dataset}.yaml``` file within models
+The specified task and dataset will be used to load the ```conf/data/{task}/{dataset}.yaml``` file, which contains the configuration for that dataset.
+
+The provided task and model will be used to load the ```conf/models/{task}/{dataset}.yaml``` file, which contains the specification for that model. 
 
 <h4> Training arguments </h4>
 
@@ -84,10 +84,6 @@ training:
     resume: True
 
 ```
-* ```weight_name```: Used when ```resume is True```, ```select``` with model to load from ```[metric_name..., latest]```
-
-* ```precompute_multi_scale```: Compute multiscate features on cpu for faster
-
 
 <h4> Eval arguments </h4>
 
@@ -107,36 +103,36 @@ eval:
 
 # Create a new dataset
 
-Let's add [```S3DIS```](http://buildingparser.stanford.edu/dataset.html) dataset to the project.
+Let's add the [```S3DIS```](http://buildingparser.stanford.edu/dataset.html) dataset to the project.
 
 We are going to go through the successive steps to do so:
 
-*  Choose the associated task related to your dataset.
+1.  Choose the appropriate task for your dataset.
 
-*  Create a new ```.yaml file``` used for configuring your dataset within ```conf/data/{your_task}/{your_dataset_name}.yaml```
+2.  Create a new `.yaml` file used for configuring your dataset within ```conf/data/{your_task}/{your_dataset_name}.yaml```
 
-*  Add your own custom configuration needed to parametrize your dataset
+3.  Add your own custom configuration needed to parametrize your dataset, to this file.
 
-*  Create a new file ```src/datasets/{your_task}/{your_dataset}.py```
+4.  Create a new file ```src/datasets/{your_task}/{your_dataset}.py```
 
-*  Implement your dataset to inherit from ```BaseDataset```
+5.  Implement your dataset to inherit from ```BaseDataset```
 
-* Associate a ```metric tracker``` to your dataset.
+6. Associate a ```metric tracker``` to your dataset.
 
-* Implement your custom ```metric tracker```.
+7. Implement your custom ```metric tracker```.
 
-Let's go throught those steps together.
+We will now go through each of these steps in more detail. 
 
 <h4> Choose the associated task for S3DIS </h4>
 
 We are going to focus on semantic segmentation.
-Our data are going to be a colored rgb pointcloud associated where each point has been associated to its own class.
+Our data is a colored rgb pointcloud where each point has been associated with a specific class.
 
 The associated task is ```segmentation```.
 
-<h4> Create a new ```.yaml file``` </h4>
+<h4> Create a new .yaml file </h4>
 
-Let's create ```conf/data/segmentation/s3dis.yaml``` file.
+Let's create the ```conf/data/segmentation/s3dis.yaml``` file.
 
 <h4> Add our own custom configuration </h4>
 
@@ -154,21 +150,21 @@ data:
     kp_extent: 1.0
 ```
 
-Here, one need note some very important parameters !
+Note the following important parameters:
 
 * ```task``` needs to be specified. Currently, the arguments provided by the command line are lost and therefore we need the extra information.
 
 * ```class``` needs to be specified. It is structured in the following: {dataset_file}/{dataset_class_name}. In order to create this dataset, we will look into 
-```src/datasets/segmentation/s3dis.py``` file and get the ```S3DISDataset``` from it.
-The remaining params will be given to the class along the training params.
+```src/datasets/segmentation/s3dis.py``` file and get the ```S3DISDataset``` class from it.
+The remaining params will be given to the class along with the training params.
 
-<h4> Create a new file ```src/datasets/{your_task}/{your_dataset}.py``` </h4>
+<h4> Create a new file src/datasets/{your_task}/{your_dataset}.py </h4>
 
-Now, create a new file ```src/datasets/segmentation/s3dis.py``` with the class ```S3DISDataset``` inside.
+Now, create a new file `src/datasets/segmentation/s3dis.py` with the class ```S3DISDataset``` inside.
 
-<h4>  Implement your dataset to inherit from ```BaseDataset`` </h4>
+<h4>  Implement your dataset to inherit from BaseDataset </h4>
 
-Before starting, we strongly advice to read the [```Creating Your Own Datasets```](https://pytorch-geometric.readthedocs.io/en/latest/notes/create_dataset.html) from ```Pytorch Geometric```
+Before starting, we strongly advice to read the [Creating Your Own Datasets](https://pytorch-geometric.readthedocs.io/en/latest/notes/create_dataset.html) from _Pytorch Geometric_.
 
 ```python
 class S3DISDataset(BaseDataset):
@@ -214,7 +210,7 @@ class S3DISDataset(BaseDataset):
         return SegmentationTracker(dataset, wandb_log=wandb_opt.log, use_tensorboard=tensorboard_opt.log)
 ```
 
-Let's explain the code more in details there.
+Let's explain the code more in detail:
 
 ```python
 class S3DISDataset(BaseDataset):
@@ -225,9 +221,9 @@ class S3DISDataset(BaseDataset):
 
 * We have create a dataset called ```S3DISDataset``` as referenced within our ```s3dis.yaml``` file.
 
-* We can only observe the dataset inherit from ```BaseDataset```. Without it, the new dataset won't be working within the framework !
+* The new dataset must inherit from ```BaseDataset```, in order to work properly with the rest of the framework. 
 
-* ```self._data_path``` will be the place where the data will be saved.
+* ```self._data_path``` gives the directory where the actual data will be saved.
 
 ```python
         pre_transform = cT.GridSampling(dataset_opt.first_subsampling, 13)
@@ -253,15 +249,15 @@ class S3DISDataset(BaseDataset):
         )
 ```
 
-This part creates some transform and train / test dataset.
+This part creates some transforms, as well as the train and test datasets.
 
 ```python
 self._create_dataloaders(train_dataset, test_dataset, val_dataset=None)
 ```
 
-This line is important. It is going to wrap your datasets directly within the correct dataloader. Don't forget to call this function. Also, we can observe it is possible to provide a ```val_dataset```.
+This line is important - it wraps your datasets directly within the correct dataloaders. Don't forget to call this function. Notice also that it is possible to provide a ```val_dataset```.
 
-<h4> Associate a ```metric tracker``` to your dataset </h4>
+<h4> Associate a metric tracker to your dataset </h4>
 
 ```python
     @staticmethod
@@ -278,7 +274,7 @@ This line is important. It is going to wrap your datasets directly within the co
         return SegmentationTracker(dataset, wandb_log=wandb_opt.log, use_tensorboard=tensorboard_opt.log)
 ```
 
-Finally, one needs to implement the ```@staticmethod get_tracker``` method with ```model, task: str, dataset, wandb_opt: bool, tensorboard_opt: bool``` as parameters.
+Finally, it is necessary to implement the ```@staticmethod get_tracker``` method with ```model, task: str, dataset, wandb_opt: bool, tensorboard_opt: bool``` as parameters.
 
 <h4> Let's have a look at the SegmentationTracker </h4>
 
@@ -337,15 +333,15 @@ class SegmentationTracker(BaseTracker):
 
 The tracker needs to inherit from the ```BaseTracker``` and implements the following methods:
 
-* ```reset```: The tracker need to be reset when switching to a new stage ```["train", "test", "val"]```
+* ```reset```: The tracker is reset when switching to a new stage ```["train", "test", "val"]```
 
-* ```track```: This function is responsible to implement your metrics
+* ```track```: This function is where you implement your custom metrics.
 
-* ```get_metrics```: This function is responsible to return a dictionnary with all the tracked metrics for your dataset.
+* ```get_metrics```: This function returns a dictionary with all the tracked metrics for your dataset.
 
 # Create a new model
 
-Let's add [```PointNet++```](https://github.com/charlesq34/pointnet2) model implemented within the "DENSE" format type to the project.
+Let's add the [```PointNet++```](https://github.com/charlesq34/pointnet2) model implemented within the "DENSE" format type to the project.
 
 We are going to go through the successive steps to do so:
 
